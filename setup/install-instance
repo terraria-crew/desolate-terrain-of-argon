@@ -13,10 +13,12 @@ verify_root() {
 parse_args() {
   echo Loading arguments
   setup_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-  pushd $setup_dir
+  pushd $setup_dir 1>/dev/null
   repo_root=`git rev-parse --show-toplevel`
   popd
-  source $repo_root/scripts/args
+  echo "sourcing: $repo_root/scripts/args"
+  echo "args: $@"
+  source $repo_root/scripts/args "$@"
   user=terraria-$iid
 }
 
@@ -49,8 +51,8 @@ install_environment() {
 
 install_processes() {
   echo Installing binaries
-  pushd /opt/terraria/$iid
-  tar zxvf $binary_archive
+  pushd /opt/terraria/$iid 1>/dev/null
+  #tar zxvf $binary_archive
   popd
 
   echo Installing scripts
@@ -59,7 +61,7 @@ install_processes() {
 
 install_server_config() {
   echo Generating server config from template
-  let server_conf_path=$terraria_home/server.conf
+  local server_conf_path=$terraria_home/server.conf
   cp $setup_dir/templates/server.conf $server_conf_path
   chmod 644 $server_conf_path 
   chown $user:$user $server_conf_path
@@ -69,7 +71,7 @@ install_server_config() {
   if [ "$password" == "" ]; then
     sed -i 's;^\(\s*password\s*\)=;\#\1;g' $server_conf_path
   else
-    let escaped_password=$(echo $password | sed -e 's/[\/&]/\\&/g')
+    local escaped_password=$(echo $password | sed -e 's/[\/&]/\\&/g')
     sed "s;{PASSWORD};$escaped_password;g" -i $server_conf_path
   fi
   if [ "$port" == "" ]; then
@@ -86,7 +88,7 @@ install_server_config() {
 
 install_service() {
   echo Generating service config from template
-  let service_path=/etc/systemd/system/$user.service
+  local service_path=/etc/systemd/system/$user.service
   cp $setup_dir/templates/instance.service $service_path
   chmod 644 $service_path
   sed "s;{USER};$user;g" -i $service_path
@@ -94,42 +96,43 @@ install_service() {
 }
 
 find_world_active() {
-  let world_root=/srv
-  echo "Searching within $world_root for world: *$world_name*.wld"
-  let world_path=`find $world_root -type f -name "*$world_name*.wld" | head -n 1 | xargs realpath`
-  return $world_path
+  local world_root="/srv"
+  local world_path=`find $world_root -type f -name "*$world_name*.wld" | head -n 1 | xargs realpath 2>/dev/null`
+  echo $world_path
 }
 
 find_world_targz() {
-  let world_root=/home/ubuntu
-  echo "Searching within $world_root for world archive: *$world_name*.tar.gz"
-  let world_archive=`find $world_root -type f -name "*$world_name*.tar.gz" | head -n 1 | xargs realpath`
+  local world_root=/home/jake
+  #echo "Searching within $world_root for world archive: *$world_name*.tar.gz"
+  local world_archive=`find $world_root -type f -name "*$world_name*.tar.gz" | head -n 1 | xargs realpath 2>/dev/null`
   pushd `mktemp -d`
   tar zxvf $world_archive
-  let world_path=`find . -type f -name "*$world_name*.wld" | head -n 1 | xargs realpath`
+  local world_path=`find . -type f -name "*$world_name*.wld" | head -n 1 | xargs realpath 2>/dev/null`
   popd
-  return $world_path
+  echo $world_path
 }
 
 find_world_7z() {
-  let world_root=/home/ubuntu;
-  echo "Searching within $world_root for world archive: *$world_name*.7z"
-  let world_archive=`find $world_root -type f -name "*$world_name*.7z" | head -n 1 | xargs realpath`
+  local world_root=/home/ubuntu;
+  #echo "Searching within $world_root for world archive: *$world_name*.7z"
+  local world_archive=`find $world_root -type f -name "*$world_name*.7z" | head -n 1 | xargs realpath 2>/dev/null`
   pushd `mktemp -d`
   7z x $world_archive
-  let world_path=`find . -type f -name "*$world_name*.wld" | head -n 1`
+  local world_path=`find . -type f -name "*$world_name*.wld" | head -n 1`
   popd
-  return $world_path
+  echo $world_path
 }
 
 install_world() {
+  echo "ashdf"
   if [ "$world_name" != "" ]; then
-    let world_path=""
+    local world_path=""
     if [ "$world_path" == "" ]; then
       world_path=`find_world_active`
     fi
     if [ "$world_path" == "" ]; then
       world_path=`find_world_targz`
+      echo "here again: $world_path"
     fi
     if [ "$world_path" == "" ]; then
       world_path=`find_world_7z`
@@ -146,15 +149,18 @@ install_world() {
   fi
 }
 
-echo "$iid instance installation completed."
-
 main() {
   verify_root
-  parse_args
+  parse_args "$@"
   verify_user
   install_environment
   install_processes
   install_server_config
   install_service
   install_world
+  echo "$iid instance installation completed."
 }
+
+main "$@"
+
+
