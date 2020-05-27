@@ -1,0 +1,14 @@
+[Unit]
+Description=server daemon for {USER}
+
+[Service]
+Type=forking
+User={USER}
+KillMode=none
+ExecStart=/opt/terraria/{IID}/scripts/launch {IID}
+ExecStop=/opt/terraria/{IID}/scripts/svc-cmd {USER} exit
+Restart=on-failure
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target

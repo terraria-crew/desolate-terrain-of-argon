@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Config
+iid=$1
+user=terraria-$iid
+timestamp=`date "+%Y.%m.%d.%H.%M.%S"`
+terraria_home=/srv/$user/.local/share/Terraria
+config_path=$terraria_home/server.conf
+exec_path=/opt/terraria/$iid/bin/main_server
+log_path=$terraria_home/Logs
+rc_path=$log_path/.screenrc
+echo "logfile $log_path" > $rc_path 
+echo "logfile flush 0" >> $rc_path
+
+# Exec
+launcher="$exec_path -config $config_path"
+/usr/bin/screen -c $rc_path -dmSL $user /bin/bash -c "$launcher"
