@@ -1,4 +1,0 @@
-#!/usr/bin/env bash
-
-user=$1
-sudo systemctl stop $user

@@ -1,0 +1,160 @@
+#!/bin/bash
+
+set -e
+
+verify_root() {
+  echo Verifying root access
+  if [[ $EUID -ne 0 ]]; then
+    echo "This script must be run as root"
+    exit 1
+  fi
+}
+
+parse_args() {
+  echo Loading arguments
+  setup_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+  pushd $setup_dir
+  repo_root=`git rev-parse --show-toplevel`
+  popd
+  source $repo_root/scripts/args
+  user=terraria-$iid
+}
+
+verify_user() {
+  echo Checking for pre-existing user: $user
+  if getent passwd $user > /dev/null 2>&1; then
+      echo "User $user exists; skipping creation."
+  else
+      echo "User does not exist; creating a new user: $user"
+      useradd -rmd /srv/$user $user
+  fi
+}
+
+install_environment() {
+  echo Configuring paths
+  terraria_home=/srv/$user/.local/share/Terraria
+  if $tml_enabled; then
+      binary_archive=$(realpath `find $repo_root -type f -name 'tml-*-bin.tar.gz'`)
+      world_dir=$terraria_home/ModLoader/Worlds
+  else
+      binary_archive=$(realpath `find $repo_root -type f -name 'terraria-*-bin.tar.gz'`)
+      world_dir=$terraria_home/Worlds
+  fi
+
+  echo Making directories for binaries, scripts, logs, and worlds
+  mkdir -p /opt/terraria/$iid/bin /opt/terraria/$iid/scripts
+  mkdir -p $terraria_home/Logs $world_dir
+  chown -R $user:$user /srv/$user/.local
+}
+
+install_processes() {
+  echo Installing binaries
+  pushd /opt/terraria/$iid
+  tar zxvf $binary_archive
+  popd
+
+  echo Installing scripts
+  cp -ar $repo_root/scripts/* /opt/terraria/$iid/scripts/
+}
+
+install_server_config() {
+  echo Generating server config from template
+  let server_conf_path=$terraria_home/server.conf
+  cp $setup_dir/templates/server.conf $server_conf_path
+  chmod 644 $server_conf_path 
+  chown $user:$user $server_conf_path
+
+  sed "s;{USER};$user;g" -i $server_conf_path
+  sed "s;{WORLD_DIRECTORY};$world_dir;g" -i $server_conf_path
+  if [ "$password" == "" ]; then
+    sed -i 's;^\(\s*password\s*\)=;\#\1;g' $server_conf_path
+  else
+    let escaped_password=$(echo $password | sed -e 's/[\/&]/\\&/g')
+    sed "s;{PASSWORD};$escaped_password;g" -i $server_conf_path
+  fi
+  if [ "$port" == "" ]; then
+    sed -i 's;^\(\s*port\s*\)=;\#\1;g' $server_conf_path
+  else
+    sed "s;{PORT};$port;g" -i $server_conf_path
+  fi
+  if [ "$world_name" == "" ]; then
+    sed -i 's;^\(\s*world\s*\)=;\#\1;g' $server_conf_path
+  else
+    sed "s;{WORLD_NAME};$world_name;g" -i $server_conf_path
+  fi
+}
+
+install_service() {
+  echo Generating service config from template
+  let service_path=/etc/systemd/system/$user.service
+  cp $setup_dir/templates/instance.service $service_path
+  chmod 644 $service_path
+  sed "s;{USER};$user;g" -i $service_path
+  sed "s;{IID};$iid;g" -i $service_path
+}
+
+find_world_active() {
+  let world_root=/srv
+  echo "Searching within $world_root for world: *$world_name*.wld"
+  let world_path=`find $world_root -type f -name "*$world_name*.wld" | head -n 1 | xargs realpath`
+  return $world_path
+}
+
+find_world_targz() {
+  let world_root=/home/ubuntu
+  echo "Searching within $world_root for world archive: *$world_name*.tar.gz"
+  let world_archive=`find $world_root -type f -name "*$world_name*.tar.gz" | head -n 1 | xargs realpath`
+  pushd `mktemp -d`
+  tar zxvf $world_archive
+  let world_path=`find . -type f -name "*$world_name*.wld" | head -n 1 | xargs realpath`
+  popd
+  return $world_path
+}
+
+find_world_7z() {
+  let world_root=/home/ubuntu;
+  echo "Searching within $world_root for world archive: *$world_name*.7z"
+  let world_archive=`find $world_root -type f -name "*$world_name*.7z" | head -n 1 | xargs realpath`
+  pushd `mktemp -d`
+  7z x $world_archive
+  let world_path=`find . -type f -name "*$world_name*.wld" | head -n 1`
+  popd
+  return $world_path
+}
+
+install_world() {
+  if [ "$world_name" != "" ]; then
+    let world_path=""
+    if [ "$world_path" == "" ]; then
+      world_path=`find_world_active`
+    fi
+    if [ "$world_path" == "" ]; then
+      world_path=`find_world_targz`
+    fi
+    if [ "$world_path" == "" ]; then
+      world_path=`find_world_7z`
+    fi
+    if [ "$world_path" == "" ] || [ ! -f $world_path ]; then
+      echo "World could not be found; skipping.";
+      exit
+    else
+      echo "Found world; configuring for $iid auto-start: $world_path"
+    fi
+    cp $world_path $world_dir/
+    chown $user:$user $world_dir/*
+    chmod 644 $world_dir/*
+  fi
+}
+
+echo "$iid instance installation completed."
+
+main() {
+  verify_root
+  parse_args
+  verify_user
+  install_environment
+  install_processes
+  install_server_config
+  install_service
+  install_world
+}

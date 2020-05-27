@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+iid=$1
+mod_path=$2
+user=terraria-$iid
+mod_file=`basename $mod_path`
+install_path=/srv/$user/.local/share/Terraria/ModLoader/Mods/$mod_file
+
+sudo cp $mod_path $install_path
+sudo chown $user:$user $install_path
+sudo chmod 644 $install_path
+
+echo "Mod '$mod_file' installed: $install_path"

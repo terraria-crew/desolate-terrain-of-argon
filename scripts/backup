@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+iid=$1
+version=$2
+world_name=$3
+user=terraria-$iid
+backup_uri="s3://terraria.mrskeltal.io/$iid/$world_name"
+terraria_home=/srv/$user/.local/share/Terraria
+if [ "$version" == "vanilla" ]; then
+  world_dir=$terraria_home/Worlds
+elif [ "$version" == "tml" ]; then
+  world_dir=$terraria_home/ModLoader/Worlds
+else
+  echo "Invalid version selected: '$version'; expected 'vanilla' or 'tml'." >> /dev/stderr
+fi
+backup_dir=$terraria_home/Backups
+timestamp=`date "+%Y.%m.%d.%H.%M.%S"`
+archive_name=$timestamp-$iid-$world_name
+cd $world_dir
+7z a -t7z $backup_dir/$archive_name.7z $world_name.wld
+
+export AWS_CONFIG_FILE=/home/ubuntu/.aws/config
+export AWS_PROFILE=default
+aws s3 sync $backup_dir $backup_uri

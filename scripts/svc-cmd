@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+user=$1
+req=$2
+timestamp=`date "+%Y.%m.%d.%H.%M.%S"`
+attach="screen -r $user"
+inject="screen -S $user -X stuff $req^M"
+
+if [ "$req" = "attach" ] ; then 
+    cmd="$attach" ; 
+else 
+    cmd="$inject" ; 
+fi
+
+if [ "`stat -c '%u' /var/run/screen/S-$user/`" = "`id -u`" ]
+then
+    $cmd
+else
+    sudo -u $user $cmd
+fi
