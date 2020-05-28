@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-iid=$1
-version=$2
-world_name=$3
-user=terraria-$iid
+source /usr/local/bin/terraria-args
+arglist=("iid" "version" "world_name" "user")
+verify_arglist "${arglist[@]}"
+
 backup_uri="s3://terraria.mrskeltal.io/$iid/$world_name"
 terraria_home=/srv/$user/.local/share/Terraria
 if [ "$version" == "vanilla" ]; then

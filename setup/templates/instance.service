@@ -5,8 +5,8 @@ Description=server daemon for {USER}
 Type=forking
 User={USER}
 KillMode=none
-ExecStart=/opt/terraria/{IID}/scripts/svc-exec {IID}
-ExecStop=/opt/terraria/{IID}/scripts/svc-cmd {USER} exit
+ExecStart=/opt/terraria/{IID}/scripts/svc-exec --iid {IID}
+ExecStop=/opt/terraria/{IID}/scripts/svc-cmd --iid {IID} --invoke exit
 Restart=on-failure
 RestartSec=10s
 

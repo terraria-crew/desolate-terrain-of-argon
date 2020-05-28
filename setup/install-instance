@@ -18,8 +18,9 @@ parse_args() {
   popd
   echo "sourcing: $repo_root/scripts/args"
   echo "args: $@"
-  source $repo_root/scripts/args "$@"
-  user=terraria-$iid
+  source /usr/local/bin/terraria-args
+  arglist=("iid" "user" "password" "port" "world_name")
+  verify_arglist "${arglist[@]}"
 }
 
 verify_user() {
@@ -35,7 +36,7 @@ verify_user() {
 install_environment() {
   echo Configuring paths
   terraria_home=/srv/$user/.local/share/Terraria
-  if $tml_enabled; then
+  if $tml; then
       binary_archive=$(realpath `find $repo_root -type f -name 'tml-*-bin.tar.gz'`)
       world_dir=$terraria_home/ModLoader/Worlds
   else
@@ -149,8 +150,8 @@ install_world() {
 }
 
 main() {
-  verify_root
   parse_args "$@"
+  verify_root
   verify_user
   install_environment
   install_processes

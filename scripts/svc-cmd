@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 
-user=$1
-req=$2
+source /usr/local/bin/terraria-args
+arglist=("iid" "user" "invoke")
+verify_arglist "${arglist[@]}"
+
 timestamp=`date "+%Y.%m.%d.%H.%M.%S"`
 attach="screen -r $user"
-inject="screen -S $user -X stuff $req^M"
+inject="screen -S $user -X stuff $invoke^M"
 
-if [ "$req" = "attach" ] ; then 
+if [ "$invoke" = "attach" ] ; then 
     cmd="$attach" ; 
 else 
     cmd="$inject" ; 

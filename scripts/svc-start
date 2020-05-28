@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
 
-user=$1
+source /usr/local/bin/terraria-args
+arglist=("iid" "user")
+verify_arglist "${arglist[@]}"
+
 sudo systemctl start $user

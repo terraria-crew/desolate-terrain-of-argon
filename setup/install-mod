@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+source /usr/local/bin/terraria-args
+arglist=("iid" "user" "mod_path")
+verify_arglist "${arglist[@]}"
+
 iid=$1
 mod_path=$2
 user=terraria-$iid

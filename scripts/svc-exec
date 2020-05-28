@@ -1,8 +1,9 @@
 #!/bin/bash
 
-# Config
-iid=$1
-user=terraria-$iid
+source /usr/local/bin/terraria-args
+arglist=("iid" "user")
+verify_arglist "${arglist[@]}"
+
 timestamp=`date "+%Y.%m.%d.%H.%M.%S"`
 terraria_home=/srv/$user/.local/share/Terraria
 config_path=$terraria_home/server.conf

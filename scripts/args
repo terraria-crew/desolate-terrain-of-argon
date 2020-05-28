@@ -1,6 +1,17 @@
 #!/bin/bash
 
-OPTS=`getopt -o h -l help -l tml -l iid: -l password: -l port: -l world-name: -- "$@"`
+SCRIPT_SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SCRIPT_SOURCE" ]; do # resolve $SCRIPT_SOURCE until the file is no longer a symlink
+  SCRIPT_DIR="$( cd -P "$( dirname "$SCRIPT_SOURCE" )" >/dev/null 2>&1 && pwd )"
+  SCRIPT_SOURCE="$(readlink "$SCRIPT_SOURCE")"
+                                    # if $SCRIPT_SOURCE was a relative symlink, we need to 
+                                    # resolve it relative to the path where the symlink 
+                                    # file was located
+  [[ $SCRIPT_SOURCE != /* ]] && SCRIPT_SOURCE="$SCRIPT_DIR/$SCRIPT_SOURCE" 
+done
+SCRIPT_DIR="$( cd -P "$( dirname "$SCRIPT_SOURCE" )" >/dev/null 2>&1 && pwd )"
+
+OPTS=`getopt -o h -l help -l tml -l iid: -l invoke: -l version: -l password: -l port: -l world-name: -- "$@"`
 if [ $? != 0 ]
 then
     exit 1
@@ -13,6 +24,8 @@ function usage() {
   echo "  $0 --iid <Instance ID> [OPTIONS]"
   echo "  --tml: Enable tModLoader"
   echo "  --password: Set server password"
+  echo "  --version: Specify the TML or Vanilla version of Terraria."
+  echo "  --invoke: Specify a command or subroutine to invoke within the parent script."
   echo "  --port: Set server port"
   echo "  --world-name: Set the desired world name to be loaded or created."
   echo ""
@@ -26,18 +39,47 @@ while true ; do
         --help) usage; exit;;
         --iid) iid=$2; shift 2;;
         --password) password=$2; shift 2;;
+        --version) version=`tr '[:upper:]' '[:lower:]' <<< "$2"`; shift 2;;
+        --invoke) invoke=$2; shift 2;;
         --port) port=$2; shift 2;;
         --world-name) world_name=$2; shift 2;;
-        --tml) tml_enabled=true; shift;;
+        --tml) tml=true; shift;;
         --) shift; break;;
     esac
 done
 
+verify_arg() {
+  argname="$1"
+  eval "argval=\$$argname"
+  if [ ! "$argval" ]; then
+    echo "No value supplied for argument '$argname'; script aborted." >> /dev/stderr
+    exit 1
+  fi
+}
+
+verify_arglist() {
+  arglist=("$@")
+  for arg in "${arglist[@]}"; do
+    verify_arg "$arg"
+  done
+}
+
 if [ ! "$iid" ]; then
-  echo "No instance ID parameter supplied (--iid).";
-  usage;
-  exit 1
+  iid=`grep -Pho 'terraria[-/]\K[\w-]+' <<< $SCRIPT_DIR`
+  if [ "$iid" == "service" ]; then
+    unset iid
+  fi
 fi
-if [ ! "$tml_enabled" ]; then
-  tml_enabled=false
+
+if [ "$iid" ]; then
+  user=terraria-$iid
+fi
+if [ ! "$tml" ]; then
+  tml=false
+fi
+if [ "$version" ]; then
+  if [[ ( "$version" != "tml" && $version != "vanilla" ) ]]; then
+    echo "Ineligible value assigned to \$version variable: '$version'" >> /dev/stderr;
+    exit 1;
+  fi
 fi
