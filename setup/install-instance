@@ -52,7 +52,7 @@ install_environment() {
 install_processes() {
   echo Installing binaries
   pushd /opt/terraria/$iid 1>/dev/null
-  #tar zxvf $binary_archive
+  tar zxvf $binary_archive
   popd
 
   echo Installing scripts
@@ -124,7 +124,6 @@ find_world_7z() {
 }
 
 install_world() {
-  echo "ashdf"
   if [ "$world_name" != "" ]; then
     local world_path=""
     if [ "$world_path" == "" ]; then
